@@ -1,0 +1,153 @@
+# include<string.h>
+# include<sys/select.h>
+# include<sys/time.h>
+# include<sys/types.h>
+# define MAX_CLIENTS 10
+# define MSG_SIZE 1024
+
+int main()
+{
+        int tcp_socketfd;
+        int clisoc_fd;
+        int c,n,clilen,fd,no_clients;
+        int i,res,x;
+
+        char buf[1024],msg[1024],kbmsg[1024];
+        int fd_array[10];
+
+        fd_set readfds,testfds;
+        struct sockaddr_in myaddr,cliaddr;
+
+
+        if((tcp_socketfd=socket(PF_INET,SOCK_STREAM,IPPROTO_TCP))==-1)
+                {
+                perror("Socket conxn prob");
+                exit(1);
+                }
+
+        myaddr.sin_family=PF_INET;
+        myaddr.sin_port=htons(4002); // PORT!
+        myaddr.sin_addr.s_addr=INADDR_ANY;
+
+        no_clients=0;
+        bzero(&(myaddr.sin_zero),8);
+
+        if(bind(tcp_socketfd,(struct sockaddr *)&myaddr,sizeof(struct sockaddr))==-1)
+                {
+             printf("\nBinding prob");
+             exit(1);
+                }
+
+        if(listen(tcp_socketfd,1)==-1)
+                {
+                printf("\nListen prob");
+                exit(1);
+                }
+
+        FD_ZERO(&readfds);
+        FD_SET(tcp_socketfd,&readfds);
+        FD_SET(0,&readfds);
+
+        while(1)
+                {
+                testfds=readfds;
+                select(FD_SETSIZE,&testfds,NULL,NULL,NULL);
+                for(fd=0;fd<FD_SETSIZE;fd++)
+                        {
+                        if(FD_ISSET(fd,&testfds))
+                                {
+                                if(fd==tcp_socketfd)
+                                        {
+                                        clisoc_fd=accept(tcp_socketfd,NULL,NULL);
+                                        if(no_clients<MAX_CLIENTS)
+                                                {
+                                                FD_SET(clisoc_fd,&readfds);
+                                                fd_array[no_clients]=clisoc_fd;
+                                                printf("\nClient %d joined",no_clients++);
+                                                fflush(stdout);
+                                                sprintf(msg,"xClient %2d joined. ID: %d",no_clients-1,clisoc_fd);
+                                                write(clisoc_fd,msg,strlen(msg));
+                                                }
+                                        else
+                                                {
+                                                sprintf(msg,"too many clients");
+                                                write(clisoc_fd,msg,strlen(msg));
+                                                close(tcp_socketfd);
+                                                }
+                                        }
+                                else if(fd==0)
+                                        {
+                                        fflush(stdin);
+                                        fgets(kbmsg,MSG_SIZE+1,stdin);
+                                        if (strcmp(kbmsg, "quit\n")==0)
+                                                {
+                                                        sprintf(msg, "QServer is closing.\n");
+                                                        for (i = 0; i < no_clients ; i++)
+                                                                {
+                                                                write(fd_array[i], msg, strlen(msg));
+                                                                close(fd_array[i]);
+                                                                }
+
+                                                close(tcp_socketfd);
+                                                exit(0);
+                                                }
+                                        else
+                                                {
+                                        //      S - send
+                                                sprintf(msg,"xServer: %s",kbmsg);
+                                                for(i=0;i<no_clients;i++)
+                                                        {
+                                                        write(fd_array[i],msg,strlen(msg));
+                                                        }
+                                                }
+                                        }
+                                else if(fd)
+                                        {
+                                //      S-r
+                                        res=read(fd,msg,MSG_SIZE);
+                                        if(res==-1)
+                                                {
+                                                perror("read()");
+                                                }
+                                        else if(res>0)
+                                                {
+                                                sprintf(kbmsg,"M Client %2d : ",fd);
+                                                msg[res]='\0';
+                                                strcat(kbmsg,msg+1);
+                                                for(i=0;i<no_clients;i++)
+                                                        {
+                                                        if(fd_array[i]!=fd)
+                                                                write(fd_array[i],kbmsg,strlen(kbmsg));
+                                                        }
+                                                printf("\n%s",kbmsg+1);
+                                                if(msg[0] == 'Q')
+                                                        {
+                                                             FD_CLR(fd,&readfds);
+                                                                for(i=fd;i<no_clients;i++)
+                                                                        {
+                                                                        x=i+1;
+                                                                        fd_array[i]=fd_array[x];
+                                                                        }
+
+                                                                no_clients=no_clients-1;
+
+                                                        }
+                                                }
+                                        }
+                                else
+                                        {
+
+                                        FD_CLR(fd,&readfds);
+                                        for(i=fd;i<no_clients;i++)
+                                                {
+                                                x=i+1;
+                                                fd_array[i]=fd_array[x];
+                                                }
+
+                                                  no_clients=no_clients-1;
+                                        }
+                                }
+                        }
+                }
+}
+

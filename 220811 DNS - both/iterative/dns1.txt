@@ -1,0 +1,117 @@
+#include<stdio.h>
+#include<netinet/in.h>
+#include<sys/types.h>
+#include<sys/socket.h>
+#include<netdb.h>
+#include<string.h>
+# include<stdlib.h>
+
+#define MAX 80
+#define PORT 5002
+# define PORT2 5001
+# define TABLESIZE 10
+
+struct resource_record
+        {
+        char name[20];
+        char ipaddr[20];
+        };
+
+
+
+void fillTable(struct resource_record table[])
+        {
+        int i;
+        for(i=0;i<10;i++)
+                {
+                strcpy(table[i].name,"name0");
+                table[i].name[4]=48+i;
+
+                strcpy(table[i].ipaddr,"10.1.4.0");
+                table[i].ipaddr[7]=48+i;
+                }
+
+        for(i=0;i<10;i++)
+                {
+                printf("\n %s\t%s", table[i].name, table[i].ipaddr);
+                }
+
+        }
+
+
+void func(int sockfd)
+        {
+        char buff[MAX];
+        int clen, no_bytes;
+	int found=0, i;
+        struct sockaddr_in cli;
+      
+
+        struct resource_record table[10];
+
+        fillTable(table);
+
+        clen=sizeof(cli);
+
+        bzero(buff,MAX);      // makes zero
+
+        no_bytes=recvfrom(sockfd,buff,sizeof(buff),0,(struct sockaddr *)&cli,&clen);
+
+	buff[no_bytes]='\0';
+
+        printf("Requested record: %s",buff);
+
+        for(i=0;i<10;i++)
+                {
+                if((strncmp(table[i].name, buff, 5)==0) && (buff[6]=='\0')) // hardcoded
+                        {
+                        found=1;
+                        printf("\n Found! %s", buff);
+                        strcpy(buff, table[i].ipaddr);
+                        break;
+                        }
+                }
+
+
+        if(found==0)
+                {
+                strcpy(buff, "NF 5001");
+                printf("\nNot Found");
+                }
+
+        sendto(sockfd,buff,sizeof(buff),0,(struct sockaddr *)&cli,clen);
+
+        }
+
+int main()
+        {
+        int sockfd;
+        struct sockaddr_in servaddr;
+
+        sockfd=socket(AF_INET,SOCK_DGRAM,0);
+        if(sockfd==-1)
+                        {
+                        printf("socket creation failed...\n");
+                        exit(0);
+                        }
+                else
+                        printf("Socket successfully created..\n");
+
+        bzero(&servaddr,sizeof(servaddr));
+        servaddr.sin_family=AF_INET;
+        servaddr.sin_addr.s_addr=INADDR_ANY;
+        servaddr.sin_port=htons(PORT);			// assigns port
+
+        if((bind(sockfd,(struct sockaddr *)&servaddr,sizeof(servaddr)))!=0) // binding
+                        {
+                        printf("socket bind failed...\n");
+                        exit(0);
+                        }
+                else
+                        printf("Socket successfully binded..\n");
+
+        func(sockfd);
+
+        close(sockfd);
+        }
+

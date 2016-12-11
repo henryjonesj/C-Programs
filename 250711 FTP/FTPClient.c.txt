@@ -1,0 +1,65 @@
+# include<sys/types.h>
+# include<sys/socket.h>
+
+// for the struct and for INADDR_ANY
+# include<netinet/in.h>
+
+/*
+# include<errno.h>
+# include<arpa/inet.h>
+# include<unistd.h>
+*/
+# include<stdio.h>
+# include<string.h>
+# include<stdlib.h> // exit
+
+
+int main()
+{
+int sockfd,  no_bytes;
+char send_buff[1024], fname[15];
+
+struct sockaddr_in server_addr, client_addr;
+
+int addrlen=sizeof(struct sockaddr_in);       // arjun: sin_size
+
+FILE * fp;
+
+
+if((sockfd=socket(AF_INET, SOCK_STREAM, 0))==-1)
+        {
+        printf("Socket error");
+        exit(1);
+        }
+printf("\n Socketfd: %d", sockfd);
+
+server_addr.sin_family=AF_INET;
+server_addr.sin_port=htons(2000);
+server_addr.sin_addr.s_addr=INADDR_ANY;
+
+bzero(&(server_addr.sin_zero), 8);
+
+if(connect(sockfd, (struct sockaddr *)&server_addr, sizeof(struct sockaddr))==-1)
+        {
+        perror("\nconnect prob");
+        exit(1);
+        }
+printf("\n Connected!");
+
+no_bytes=recv(sockfd, fname, 15, 0);
+fname[no_bytes]='\0';
+
+fp=fopen(fname, "r");
+
+while((fgets(send_buff, 1024, fp))!=NULL)
+        {
+        send(sockfd, send_buff, sizeof(send_buff), 0);
+        }
+
+printf("\n Done!/n");
+
+close(sockfd);
+
+return(0);
+
+}

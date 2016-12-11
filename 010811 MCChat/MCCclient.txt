@@ -1,0 +1,64 @@
+
+#include<sys/socket.h>
+#include<netinet/in.h>
+#include<arpa/inet.h>
+#include<stdlib.h>
+#include<errno.h>
+#include<string.h>
+#include<sys/select.h>
+#include<sys/time.h>
+#include<sys/types.h>
+#define MAX_CLI 5
+#define MSG_SIZE 1024
+        fflush(stdout);
+
+        FD_ZERO(&clientfds);
+        FD_SET(clisoc_fd,&clientfds);
+        FD_SET(0,&clientfds);
+
+        while(1)
+                {
+                testfds=clientfds;
+                select(FD_SETSIZE,&testfds,NULL,NULL,NULL);
+                for(fd=0;fd<FD_SETSIZE;fd++)
+                        {
+                        if(FD_ISSET(fd,&testfds))
+                                {
+                                if(fd==clisoc_fd)
+                                        {
+                                        // CR
+                                        res=read(clisoc_fd,msg,MSG_SIZE);
+                                        msg[res]='\0';
+                                        fflush(stdout);
+                                        printf("\n%s",msg+1);
+                                        if(msg[0]=='Q')
+                                                {
+                                                close(clisoc_fd);
+                                                exit(0);
+                                                }
+                                        }
+                                else if(fd==0)
+                                        {
+                                        // C-s
+                                        fflush(stdin);
+                                        fgets(kbmsg,MSG_SIZE+1,stdin);
+                                        if(strcmp(kbmsg,"quit\n")==0)
+                                                {
+                                                sprintf(msg,"QClient is closing\n");
+                                                write(clisoc_fd,msg,strlen(msg));
+                                                close(clisoc_fd);
+                                                exit(0);
+                                                }
+                                        else
+                                                {
+                                                msg[res]='\0';
+
+                                                sprintf(msg,"M%s",kbmsg);
+                                                write(clisoc_fd,msg,strlen(msg));
+                                                }
+                                        }
+                                }
+                        }
+                }
+}
+

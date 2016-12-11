@@ -1,0 +1,86 @@
+# include<sys/types.h>
+# include<sys/socket.h>
+
+// for the struct and for INADDR_ANY
+# include<netinet/in.h>
+# include<stdio.h>
+# include<string.h>
+# include<stdlib.h> // exit
+
+
+int main()
+{
+int sockfd, confd, no_bytes;
+char send_buff[1024], recv_buff[1024];
+
+char fname[15];
+FILE * fp=fopen("op.txt", "a");
+
+struct sockaddr_in server_addr, client_addr;
+int addrlen=sizeof(struct sockaddr_in);
+
+if((sockfd=socket(AF_INET, SOCK_STREAM, 0))==-1)
+        {
+        printf("Socket error");
+        exit(1);
+        }
+
+printf("\n Socketfd: %d", sockfd);
+
+server_addr.sin_family=AF_INET;
+server_addr.sin_port=htons(2000); // port!!
+server_addr.sin_addr.s_addr=INADDR_ANY;
+
+bzero(&(server_addr.sin_zero), 8);
+
+if(bind(sockfd, (struct sockaddr *)&server_addr, sizeof(struct sockaddr))==-1)
+        {
+        printf("Binding error..");
+        exit(1);
+        }
+if(listen(sockfd, 5)==-1)
+        {
+        perror("Listen error");
+        exit(1);
+        }
+
+printf("\n Server waiting for client on port 2000");
+fflush(stdout);
+
+if((confd=accept(sockfd, (struct sockaddr *)&client_addr, &addrlen))==-1)
+        {
+        perror("\nconnect prob");
+        exit(1);
+        }
+
+printf("\n Connected!");
+fflush(stdout);
+
+
+printf("\n Enter the name of the file: ");
+scanf("%s", fname);
+
+send(confd, fname, sizeof(fname), 0);
+
+while(1)
+        {
+        no_bytes=recv(confd, recv_buff, 1024, 0);
+
+        if(no_bytes==0)
+                break;
+        recv_buff[no_bytes]='\0';
+
+
+        printf("%s", recv_buff);
+
+        fputs(recv_buff, fp);
+        }
+
+
+printf("\ndone! output stored in op.txt\n");
+
+close(sockfd);
+
+return(0);
+
+}
